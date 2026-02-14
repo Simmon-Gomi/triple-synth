@@ -1,0 +1,642 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Triple Synth — 役割分離 × 生成統合</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+JP:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+    :root {
+      --bg: #f8f8f6;
+      --card: #fff;
+      --text: #1a1a1a;
+      --muted: #71717a;
+      --line: #e4e4e7;
+      --accent: #18181b;
+      --propose: #1d4ed8;
+      --proposeBg: #eff6ff;
+      --proposeLine: #93c5fd;
+      --critic: #b45309;
+      --criticBg: #fffbeb;
+      --criticLine: #fbbf24;
+      --judge: #047857;
+      --judgeBg: #ecfdf5;
+      --judgeLine: #34d399;
+      --synth: #7c3aed;
+      --synthBg: #f5f3ff;
+      --synthLine: #a78bfa;
+      --bensho: #be123c;
+      --benshoBg: #fff1f2;
+      --benshoLine: #fb7185;
+      --radius: 8px;
+      --shadow: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+    }
+    * { box-sizing: border-box; margin: 0; }
+    body {
+      font-family: 'IBM Plex Sans JP', system-ui, sans-serif;
+      background: var(--bg); color: var(--text);
+      line-height: 1.6; -webkit-font-smoothing: antialiased;
+    }
+
+    .wrap { max-width: 1280px; margin: 0 auto; padding: 0 16px 40px; }
+
+    /* Sticky header */
+    .top-bar {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(248,248,246,.92);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--line);
+      padding: 10px 16px;
+      margin: 0 -16px 16px;
+    }
+    .top-bar-inner {
+      max-width: 1280px; margin: 0 auto;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 8px;
+    }
+    .hLeft { display: flex; align-items: baseline; gap: 10px; }
+    .hLeft h1 { font-size: 16px; font-weight: 700; letter-spacing: -.02em; }
+    .hLeft .sub { font-size: 11px; color: var(--muted); font-weight: 500; }
+    .hRight { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    .pill {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px; color: var(--muted);
+      border: 1px solid var(--line); background: var(--card);
+      padding: 3px 8px; border-radius: 999px;
+    }
+
+    /* Sections */
+    .section { margin-bottom: 14px; }
+    .section-title {
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .08em; color: var(--muted);
+      margin-bottom: 6px; padding-left: 2px;
+    }
+
+    /* Card */
+    .card {
+      background: var(--card); border: 1px solid var(--line);
+      border-radius: var(--radius); padding: 12px;
+      box-shadow: var(--shadow);
+    }
+
+    /* Input */
+    label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 3px; }
+    textarea, input {
+      width: 100%; border: 1px solid var(--line); border-radius: 6px;
+      padding: 8px 10px; font: inherit; font-size: 13px;
+      background: #fafafa; transition: border-color .15s; resize: vertical;
+    }
+    textarea:focus, input:focus { outline: none; border-color: var(--accent); background: #fff; }
+    .mono { font-family: 'IBM Plex Mono', monospace; font-size: 12px; }
+
+    /* Grids */
+    .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    @media (max-width: 980px) { .grid3 { grid-template-columns: 1fr; } }
+
+    /* Role cards */
+    .role-card { border-width: 2px; position: relative; padding-top: 26px; }
+    .role-card .role-badge {
+      position: absolute; top: -1px; right: 10px;
+      font-size: 9px; font-weight: 700; letter-spacing: .06em;
+      padding: 2px 8px; border-radius: 0 0 5px 5px; color: #fff;
+    }
+    .role-propose { border-color: var(--proposeLine); }
+    .role-propose .role-badge { background: var(--propose); }
+    .role-critic { border-color: var(--criticLine); }
+    .role-critic .role-badge { background: var(--critic); }
+    .role-judge { border-color: var(--judgeLine); }
+    .role-judge .role-badge { background: var(--judge); }
+    .role-none { border-color: var(--line); }
+    .role-none .role-badge { display: none; }
+    .role-none.role-card { padding-top: 12px; }
+
+    .role-label {
+      font-size: 12px; font-weight: 700; margin-bottom: 6px;
+      display: flex; align-items: center; gap: 5px;
+    }
+    .role-label .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .role-propose .dot { background: var(--propose); }
+    .role-critic .dot { background: var(--critic); }
+    .role-judge .dot { background: var(--judge); }
+
+    /* Buttons */
+    .btns { display: flex; gap: 6px; flex-wrap: wrap; }
+    button {
+      font-family: inherit;
+      border: 0; border-radius: 6px;
+      padding: 7px 12px; font-size: 11px; font-weight: 700;
+      cursor: pointer; color: #fff;
+      transition: transform .1s, opacity .15s;
+      letter-spacing: .01em; white-space: nowrap;
+    }
+    button:active { transform: translateY(1px); }
+    button:hover { opacity: .88; }
+    .btn-dark { background: var(--accent); }
+    .btn-propose { background: var(--propose); }
+    .btn-critic { background: var(--critic); }
+    .btn-judge { background: var(--judge); }
+    .btn-synth { background: var(--synth); }
+    .btn-bensho { background: var(--bensho); }
+    .btn-muted { background: #a1a1aa; }
+    .btn-red { background: #dc2626; }
+    .btn-sm { padding: 5px 10px; font-size: 10px; }
+
+    /* Output */
+    .output-synth { border: 2px solid var(--synthLine); background: var(--synthBg); }
+    .output-bensho { border: 2px solid var(--benshoLine); background: var(--benshoBg); }
+
+    /* Role select */
+    .role-select { display: flex; gap: 0; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+    .role-select button {
+      flex: 1; border-radius: 0; padding: 5px 6px; font-size: 11px;
+      background: #f4f4f5; color: var(--text); font-weight: 600;
+      border-right: 1px solid var(--line);
+    }
+    .role-select button:last-child { border-right: 0; }
+    .role-select button.active-propose { background: var(--proposeBg); color: var(--propose); }
+    .role-select button.active-critic { background: var(--criticBg); color: var(--critic); }
+    .role-select button.active-judge { background: var(--judgeBg); color: var(--judge); }
+    .role-select button.active-none { background: #e4e4e7; color: var(--text); }
+
+    /* Helpers */
+    .flex-between { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+    .hint { font-size: 10px; color: var(--muted); margin-top: 4px; }
+    .mb6 { margin-bottom: 6px; }
+    .mb8 { margin-bottom: 8px; }
+    .mb10 { margin-bottom: 10px; }
+    .mt8 { margin-top: 8px; }
+    .gap-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+    .gap-row > div { flex: 1; min-width: 200px; }
+
+    /* Toast */
+    .toast {
+      position: fixed; right: 16px; bottom: 16px;
+      background: rgba(24,24,27,.92); color: #fff;
+      padding: 7px 12px; border-radius: 6px;
+      font-size: 11px; font-weight: 500;
+      opacity: 0; transform: translateY(6px);
+      transition: .2s ease; pointer-events: none; z-index: 200;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+
+    /* Divider */
+    .divider { border: 0; border-top: 1px solid var(--line); margin: 10px 0; }
+  </style>
+</head>
+<body>
+
+  <!-- Sticky top bar -->
+  <div class="top-bar">
+    <div class="top-bar-inner">
+      <div class="hLeft">
+        <h1>Triple Synth</h1>
+        <span class="sub">役割分離 × 生成統合</span>
+        <span class="pill" id="sessionPill"></span>
+      </div>
+      <div class="hRight">
+        <button class="btn-dark btn-sm" onclick="newSession()">新規</button>
+        <button class="btn-red btn-sm" onclick="resetAll()">全消去</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap">
+
+    <!-- Input -->
+    <div class="section">
+      <div class="card">
+        <div class="gap-row mb8">
+          <div style="flex:2;">
+            <label>テーマ / 問い</label>
+            <input id="topic" placeholder="3つのAIに問いたいテーマ" />
+          </div>
+          <div style="flex:1;">
+            <label>Source（なければ空欄）</label>
+            <input id="source" placeholder="ガイドライン・論文要点等" />
+          </div>
+        </div>
+
+        <label class="mb6">役割の割り当て</label>
+        <div class="grid3 mb8">
+          <div>
+            <label style="font-weight:700; color:var(--text); font-size:12px;">ChatGPT</label>
+            <div class="role-select" data-model="gpt">
+              <button onclick="setRole('gpt','none',this)">なし</button>
+              <button onclick="setRole('gpt','propose',this)" class="active-propose">提案者</button>
+              <button onclick="setRole('gpt','critic',this)">反証者</button>
+              <button onclick="setRole('gpt','judge',this)">裁定者</button>
+            </div>
+          </div>
+          <div>
+            <label style="font-weight:700; color:var(--text); font-size:12px;">Claude</label>
+            <div class="role-select" data-model="claude">
+              <button onclick="setRole('claude','none',this)">なし</button>
+              <button onclick="setRole('claude','propose',this)">提案者</button>
+              <button onclick="setRole('claude','critic',this)" class="active-critic">反証者</button>
+              <button onclick="setRole('claude','judge',this)">裁定者</button>
+            </div>
+          </div>
+          <div>
+            <label style="font-weight:700; color:var(--text); font-size:12px;">Gemini</label>
+            <div class="role-select" data-model="gemini">
+              <button onclick="setRole('gemini','none',this)">なし</button>
+              <button onclick="setRole('gemini','propose',this)">提案者</button>
+              <button onclick="setRole('gemini','critic',this)">反証者</button>
+              <button onclick="setRole('gemini','judge',this)" class="active-judge">裁定者</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="btns">
+          <button class="btn-dark" onclick="genPrompt('gpt')">ChatGPT用</button>
+          <button class="btn-dark" onclick="genPrompt('claude')">Claude用</button>
+          <button class="btn-dark" onclick="genPrompt('gemini')">Gemini用</button>
+        </div>
+        <div class="hint">各ボタンでモデル別形式のプロンプトを生成・コピー → 各AIに貼り付け</div>
+      </div>
+    </div>
+
+    <!-- Responses -->
+    <div class="section">
+      <div class="grid3">
+        <div class="card role-card role-propose">
+          <span class="role-badge" id="badgeGpt">PROPOSE</span>
+          <div class="role-label"><span class="dot"></span><span id="labelGpt">ChatGPT（提案者）</span></div>
+          <textarea id="ansGpt" rows="7" placeholder="回答を貼り付け"></textarea>
+        </div>
+        <div class="card role-card role-critic">
+          <span class="role-badge" id="badgeClaude">CRITIC</span>
+          <div class="role-label"><span class="dot"></span><span id="labelClaude">Claude（反証者）</span></div>
+          <textarea id="ansClaude" rows="7" placeholder="回答を貼り付け"></textarea>
+        </div>
+        <div class="card role-card role-judge">
+          <span class="role-badge" id="badgeGemini">JUDGE</span>
+          <div class="role-label"><span class="dot"></span><span id="labelGemini">Gemini（裁定者）</span></div>
+          <textarea id="ansGemini" rows="7" placeholder="回答を貼り付け"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- Synthesis + Bensho -->
+    <div class="section">
+      <div class="card">
+        <div class="flex-between mb8">
+          <div class="btns">
+            <button class="btn-synth" onclick="genSynthesis()">統合</button>
+            <button class="btn-bensho" onclick="genBensho()">弁証</button>
+          </div>
+          <div class="btns">
+            <button class="btn-muted btn-sm" onclick="copyOutput()">コピー</button>
+            <button class="btn-muted btn-sm" onclick="clearOutput()">消去</button>
+          </div>
+        </div>
+        <textarea id="output" class="mono output-synth" rows="8" placeholder="生成結果がここに表示される"></textarea>
+        <div class="hint">統合＝完成品を作る（収束時）　弁証＝穴を突く（もう1ラウンド回す時）　→ どちらも任意のAIの新規チャットに貼る</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+// --- Roles ---
+const roles = { gpt: 'propose', claude: 'critic', gemini: 'judge' };
+const modelNames = { gpt: 'ChatGPT', claude: 'Claude', gemini: 'Gemini' };
+const roleNames = { propose: '提案者', critic: '反証者', judge: '裁定者', none: '' };
+const roleClasses = { propose: 'role-propose', critic: 'role-critic', judge: 'role-judge', none: 'role-none' };
+const badgeText = { propose: 'PROPOSE', critic: 'CRITIC', judge: 'JUDGE', none: '' };
+const activeClass = { propose: 'active-propose', critic: 'active-critic', judge: 'active-judge', none: 'active-none' };
+
+function setRole(model, role, btn) {
+  roles[model] = role;
+  btn.parentElement.querySelectorAll('button').forEach(b => b.className = '');
+  btn.className = activeClass[role];
+  updateCards();
+}
+
+function updateCards() {
+  const map = { gpt: 'Gpt', claude: 'Claude', gemini: 'Gemini' };
+  for (const [model, role] of Object.entries(roles)) {
+    const s = map[model];
+    const card = $('ans' + s).closest('.role-card');
+    card.className = `card role-card ${roleClasses[role]}`;
+    $('badge' + s).textContent = badgeText[role];
+    const dot = card.querySelector('.dot');
+    if (role === 'none') {
+      $('label' + s).textContent = modelNames[model];
+      dot.style.display = 'none';
+    } else {
+      $('label' + s).textContent = `${modelNames[model]}（${roleNames[role]}）`;
+      dot.style.display = '';
+    }
+  }
+}
+
+// --- Session ---
+function makeId() {
+  const d = new Date();
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}-${Math.random().toString(36).slice(2,5).toUpperCase()}`;
+}
+function nowIso() {
+  const d = new Date();
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+}
+
+let sessionId = makeId();
+$('sessionPill').textContent = sessionId;
+
+function newSession() {
+  sessionId = makeId();
+  $('sessionPill').textContent = sessionId;
+  toast('Session更新');
+}
+function resetAll() {
+  ['topic','source','ansGpt','ansClaude','ansGemini','output'].forEach(id => $(id).value = '');
+  newSession();
+  toast('全消去');
+}
+
+// --- Toast ---
+function toast(msg) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 1200);
+}
+
+// --- Copy ---
+async function copyText(text) {
+  if (!text) { toast('コピー対象が空'); return; }
+  $('output').value = text;
+  try {
+    await navigator.clipboard.writeText(text);
+    toast('コピーしました');
+  } catch {
+    try {
+      $('output').focus(); $('output').select();
+      document.execCommand('copy');
+      toast('コピーしました');
+    } catch { toast('自動コピー失敗'); }
+  }
+}
+function copyOutput() { copyText($('output').value); }
+function clearOutput() { $('output').value = ''; toast('消去'); }
+function norm(v) { return (v || '').trim() || 'なし'; }
+
+// --- Prompt Generation (per-model format) ---
+const roleInstructions = {
+  propose: {
+    core: '提案者として振る舞え。テーマに対する最善の仮説を1つ提示し、根拠を3点述べよ。反証可能な予測を1つ書け。',
+    constraint: '不確実な点は「未検証」と明記。推測で補わない。'
+  },
+  critic: {
+    core: '反証者として振る舞え。提案の弱点・反例・見落としを最大5点挙げよ。可能なら代替仮説を1つ提示し、判定に必要な追加情報を列挙せよ。安易に同意しない。',
+    constraint: '不確実な点は「未検証」と明記。推測で補わない。'
+  },
+  judge: {
+    core: '裁定者として振る舞え。(a) 合意点、(b) 争点、(c) 現時点で最も妥当な結論、(d) 未確定点と追加検証を整理せよ。',
+    constraint: '不確実な点は「未検証」と明記。推測で補わない。多数決で決めない。'
+  }
+};
+
+function genPrompt(model) {
+  const topic = norm($('topic').value);
+  const source = norm($('source').value);
+  const role = roles[model];
+  let prompt;
+
+  // Role-free prompt
+  if (role === 'none') {
+    if (model === 'claude') {
+      prompt = `<session>${sessionId}</session>
+
+<source>
+${source}
+</source>
+
+<instructions>
+制約：
+不確実な点は「未検証」と明記。推測で補わない。
+Sourceがある場合、Source外の断言は「未検証」と明記し削除を優先。
+</instructions>
+
+<topic>
+${topic}
+</topic>
+
+<output_format>
+結論（1–3文）→ 根拠（箇条書き最大5点）→ 限界
+</output_format>`;
+    } else if (model === 'gpt') {
+      prompt = `# Session: ${sessionId}
+
+## テーマ
+${topic}
+
+## 制約
+- 不確実な点は「未検証」と明記。推測で補わない。
+- Sourceがある場合、Source外の断言は「未検証」と明記し削除を優先
+- Source: ${source}
+
+## 出力形式（厳守）
+1. **結論**（1–3文）
+2. **根拠**（最大5点、箇条書き）
+3. **限界**`;
+    } else {
+      prompt = `【Session】${sessionId}
+
+【背景情報】
+Source: ${source}
+
+テーマ:
+${topic}
+
+【上記を踏まえた指示】
+制約：
+不確実な点は「未検証」と明記。推測で補わない。
+Sourceがある場合、Source外の断言は「未検証」と明記し削除を優先。
+
+出力形式：
+結論（1–3文）→ 根拠（箇条書き最大5点）→ 限界`;
+    }
+    copyText(prompt);
+    return;
+  }
+
+  // Role-assigned prompt
+  const ri = roleInstructions[role];
+
+  if (model === 'claude') {
+    prompt = `<session>${sessionId}</session>
+
+<source>
+${source}
+</source>
+
+<instructions>
+あなたの役割：${roleNames[role]}
+${ri.core}
+
+制約：
+${ri.constraint}
+Sourceがある場合、Source外の断言は「未検証」と明記し削除を優先。
+</instructions>
+
+<topic>
+${topic}
+</topic>
+
+<output_format>
+結論（1–3文）→ 根拠（箇条書き最大5点）→ 反論されそうな弱点（2点）→ 限界
+</output_format>`;
+  } else if (model === 'gpt') {
+    prompt = `# Session: ${sessionId}
+
+## あなたの役割：${roleNames[role]}
+
+${ri.core}
+
+## 制約
+- ${ri.constraint}
+- Sourceがある場合、Source外の断言は「未検証」と明記し削除を優先
+- Source: ${source}
+
+## テーマ
+${topic}
+
+## 出力形式（厳守）
+1. **結論**（1–3文）
+2. **根拠**（最大5点、箇条書き）
+3. **反論されそうな弱点**（2点）
+4. **限界**`;
+  } else {
+    prompt = `【Session】${sessionId}
+
+【背景情報】
+Source: ${source}
+
+テーマ:
+${topic}
+
+【上記を踏まえた指示】
+あなたの役割：${roleNames[role]}
+
+${ri.core}
+
+制約：
+${ri.constraint}
+Sourceがある場合、Source外の断言は「未検証」と明記し削除を優先。
+
+出力形式：
+結論（1–3文）→ 根拠（箇条書き最大5点）→ 反論されそうな弱点（2点）→ 限界`;
+  }
+  copyText(prompt);
+}
+
+// --- Synthesis ---
+function genSynthesis() {
+  const topic = norm($('topic').value);
+  const source = norm($('source').value);
+  $('output').className = 'mono output-synth';
+
+  const parts = [];
+  for (const [model, role] of Object.entries(roles)) {
+    const fieldMap = { gpt: 'ansGpt', claude: 'ansClaude', gemini: 'ansGemini' };
+    const label = role === 'none' ? modelNames[model] : `${modelNames[model]}（${roleNames[role]}）`;
+    parts.push(`[${label}]\n${norm($(fieldMap[model]).value)}`);
+  }
+
+  const anyRoles = Object.values(roles).some(r => r !== 'none');
+  const roleNote = anyRoles ? '\n以下の3案は、それぞれ異なる役割で生成されている。' : '';
+
+  const prompt =
+`【Session】
+${sessionId}
+【GeneratedAt】
+${nowIso()}
+
+【生成統合】
+目的：3者の出力を統合し、完成品を1つ作る
+Source＝${source}
+${roleNote}
+多数決ではなく、根拠の質で判断し、矛盾と未検証を処理して統合せよ。
+
+- Sourceあり：Source外の断言は未検証として明記し削除を優先
+- Sourceなし：Logic/Ops/Riskで最小限にまとめる
+- 禁止：多数決、同意の羅列、冗長な解説
+
+テーマ：${topic}
+
+${parts.join('\n\n')}
+
+【出力】
+- 統合版（完成品のみ）
+- 合意点・争点・暫定結論・未確定事項を明示
+- 未検証の扱い（残した場合は「未検証」明記）`;
+
+  copyText(prompt);
+}
+
+// --- Bensho ---
+function genBensho(targetModel) {
+  targetModel = targetModel || 'gpt';
+  const source = norm($('source').value);
+  const goal = norm($('topic').value);
+  $('output').className = 'mono output-bensho';
+
+  const order = ['gpt', 'claude', 'gemini'];
+  const sorted = [targetModel, ...order.filter(m => m !== targetModel)];
+  const fieldMap = { gpt: 'ansGpt', claude: 'ansClaude', gemini: 'ansGemini' };
+
+  const blocks = sorted.map((model, i) => {
+    const role = roles[model];
+    const roleLabel = role === 'none' ? '' : `（${roleNames[role]}）`;
+    const label = `AI${i}＝${modelNames[model]}${roleLabel}（以下）`;
+    return `${label}\n${norm($(fieldMap[model]).value)}`;
+  });
+
+  const prompt =
+`【Session】
+${sessionId}
+【GeneratedAt】
+${nowIso()}
+
+【弁証】
+目的＝${goal}
+Source＝${source}
+
+${blocks.join('\n\n')}
+
+Sourceあり：Source外の断言は「未検証」と明記し削除
+Sourceなし：論理[Logic]と実用性[Ops]とリスク[Risk]で評価
+
+最優先：
+- 禁止：同意/折衷/解説/多数決
+- STOP：同意増殖/目的逸脱/Source逸脱→リセット文だけ
+- 追加より削除を優先。「この追加は本当に必要か」を常に問う
+- ユーザー負担を増やす変更は原則却下
+
+穴の分類：
+- [Logic] 論理矛盾・目的との乖離
+- [Risk] 法令・安全・倫理・ハルシネーション
+- [Scope] 範囲の過不足
+- [Ops] 実用性・ユーザビリティ
+
+出力：
+1. 穴（AI0/AI1/AI2 各1行。なければ「なし」）
+2. 見落とし（3者とも触れていない重要観点。なければ「なし」）
+3. 削除すべき点（あれば）
+4. 判定：「変更不要」/「微修正」/「要改訂」
+5. 改訂版（要改訂の場合のみ。完成品のみ）`;
+
+  copyText(prompt);
+}
+</script>
+</body>
+</html>
