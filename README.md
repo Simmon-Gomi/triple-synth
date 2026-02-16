@@ -89,6 +89,39 @@ The target user is someone who already has ChatGPT, Claude, and Gemini open in s
        ▼  Repeat until converged
 ```
 
+## Recommended Workflow: 3-Round Rotation
+
+For higher-stakes tasks where you want to maximize error detection, use role rotation across two generation rounds before synthesizing.
+
+### Why rotate?
+
+When the same model stays in the same role across rounds, it keeps finding the same kind of problems (or missing the same blind spots). Rotating roles forces each model to optimize for a different objective in each round, exposing gaps that a fixed assignment would preserve.
+
+### The 3-round structure
+
+| | ChatGPT | Claude | Gemini |
+|---|---|---|---|
+| **R1: Generate** | Proposer | Critic | Judge |
+| **R2: Generate (rotated)** | Critic | Judge | Proposer |
+| **R3: Synthesize** | — | Claude | — |
+
+**Round 1** — Generate with roles as usual. Each AI produces output from its assigned perspective.
+
+**Round 2** — Rotate roles one step forward. Paste R1's three outputs into the Source/Context field, then generate new prompts with the rotated roles. Each model now approaches the same material from a different angle:
+- ChatGPT (was Proposer → now Critic): monitors whether the original intent is being lost, catches overreach
+- Claude (was Critic → now Judge): turns its earlier critique into explicit accept/reject criteria
+- Gemini (was Judge → now Proposer): converts its overview of the dispute into a concrete revised proposal
+
+**Round 3** — Synthesize. Paste all outputs from R1 and R2 into Claude's new chat using the Synthesize function. Add this constraint to the prompt: *"Prioritize R2's accept/reject criteria. Do not defer to your own R2 judgment uncritically — re-evaluate by evidence quality. Mark unresolved gaps as 'unverified.'"*
+
+### Why two generation rounds before synthesis?
+
+Synthesizing after R1 and then critiquing the synthesis ("build then break") risks the polished intermediate draft masking remaining holes. Generating twice and then synthesizing ("break then break then build") means the synthesis receives maximally scrutinized input.
+
+### When to use this vs. the basic workflow
+
+The basic workflow (generate → dialectic or synthesize) is sufficient for most questions. The 3-round rotation is worth the extra cost when the consequences of an undetected error are high — medical decisions, legal documents, critical reports — and when you have 20–30 minutes instead of 5.
+
 ## Quick Start
 
 **Option A: Use online** — Visit the [demo link](https://Simmon-Gomi.github.io/triple-synth/)
@@ -183,6 +216,39 @@ ChatGPT・Claude・Geminiの出力を比較・議論させるプロセスを構�
 5. 回答を貼り戻す
 6. 「弁証」で穴を探す or「統合」で完成品を作る → 生成されたプロンプトを任意のAIの**新規チャット**に貼る
 7. 納得いくまで繰り返す
+
+## お勧めの使い方：3ラウンド・ローテーション
+
+誤りの見落としを最小化したい場面（医療判断、重要文書、法的判断等）では、役割を回しながら生成を2回行い、最後に統合する3ラウンド構成が有効。
+
+### なぜ役割を回すのか
+
+同じモデルが同じ役割を続けると、そのモデルが得意な方向の探索しか行われず、盲点が温存される。役割を回すことで、各モデルが異なる最適化目標で同じ材料に取り組むため、固定役割では見つからない穴が見つかる。
+
+### 3ラウンドの構成
+
+| | ChatGPT | Claude | Gemini |
+|---|---|---|---|
+| **R1：生成** | 提案者 | 反証者 | 裁定者 |
+| **R2：生成（ローテ後）** | 反証者 | 裁定者 | 提案者 |
+| **R3：統合** | — | Claude | — |
+
+**Round 1** — 通常通り役割を割り当てて生成する。
+
+**Round 2** — 役割を1つずつ前方にずらす。R1の3つの出力をSource/コンテキスト欄に貼り、ローテーション後の役割で新しいプロンプトを生成する。各モデルが同じ材料を異なる角度から扱う：
+- ChatGPT（提案者→反証者）：元の提案の意図が修正で失われていないか監視し、盛りすぎを叩く
+- Claude（反証者→裁定者）：R1での批判を「採否基準の明文化」に変換し、無責任な批判を封じる
+- Gemini（裁定者→提案者）：R1で整理した争点を「設計要件」に変換し、死角の少ない改訂案を出す
+
+**Round 3** — 統合。R1とR2の全出力をClaudeの新規チャットに統合プロンプトとして渡す。統合プロンプトに次の拘束を追加：「R2の裁定者の採否基準を最優先で遵守せよ。自分（Claude）がR2裁定者であった場合もその判断を鵜呑みにせず、根拠の質で再評価せよ。埋めきれない穴は『未検証』として残せ」
+
+### なぜ統合の前に生成を2回行うのか
+
+R1の後にすぐ統合し、その統合結果を弁証する「まとめてから壊す」構造だと、まとまった文章が整って見えるため穴が見えにくくなるリスクがある。生成を2回行ってから統合する「壊してからさらに壊して、最後にまとめる」構造の方が、統合の入力が最も精査された状態になる。
+
+### 基本ワークフローとの使い分け
+
+基本ワークフロー（生成→弁証 or 統合）はほとんどの質問に十分。3ラウンド・ローテーションは、誤りを見落とした場合のコストが高い場面——医療判断、法的文書、重要な意思決定——で、5分ではなく20〜30分かけられる時に使う。
 
 ## iPhoneで使う
 
